@@ -38,23 +38,26 @@ register_deactivation_hook( __FILE__, 'cmarafb_deactivate' );
 
 function cmarafb_settings_init() {
   register_setting(
-    'cmara_options',
+    'cmara',
     'cmara_pageid'
   );
 
   add_settings_section(
 		'cmarafb_settings_section',
-		'CMARA Facebook Settings',
-    'cmarafb_settings_callback',
-		'cmara_fb'
+		__('CMARA Facebook Settings', 'cmara'),
+    'cmarafb_section_callback',
+		'cmara'
 	);
 
   add_settings_field(
 		'cmarafb_pageid_field',
-		'Facebook Page ID',
+		__('Facebook Page ID', 'cmara'),
     'cmarafb_pageid_callback',
-		'cmara_fb',
-		'cmarafb_settings_section'
+		'cmara',
+		'cmarafb_settings_section',
+    array(
+			'label_for'         => 'cmarafb_pageid_field'
+		)
 	);
 }
 
@@ -68,7 +71,7 @@ add_action('admin_init', 'cmarafb_settings_init');
  */
 
 // section content cb
-function cmarafb_settings_callback() {
+function cmarafb_section_callback() {
 	echo '<p>CMARA FB Introduction.</p>';
 }
 
@@ -92,18 +95,27 @@ function cmarafb_options_page_html() {
   if ( ! current_user_can( 'manage_options' ) ) {
     return;
   }
+
+  if ( isset( $_GET['settings-updated'] ) ) {
+		// add settings saved message with the class of "updated"
+		add_settings_error( 'cmara_messages', 'cmara_message', __( 'Settings Saved', 'cmara' ), 'updated' );
+	}
+
+	// show error/update messages
+	settings_errors( 'cmara_messages' );
+
   ?>
   <div class="wrap">
     <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
     <form action="options.php" method="post">
       <?php
       // output security fields for the registered setting "wporg_options"
-      settings_fields( 'cmara_options' );
+      settings_fields( 'cmara' );
       // output setting sections and their fields
       // (sections are registered for "wporg", each field is registered to a specific section)
-      // do_settings_sections( 'cmara_fb' );
+      do_settings_sections( 'cmara' );
       // output save settings button
-      submit_button( __( 'Save Settings', 'textdomain' ) );
+      submit_button( __( 'Save Settings' ) );
       ?>
     </form>
   </div>
@@ -118,7 +130,7 @@ function cmarafb_options_page() {
     'CMARA Facebook Integration',
     'CMARA FB Options',
     'manage_options',
-    'cmara_fb',
+    'cmara',
     'cmarafb_options_page_html',
     20
   );
