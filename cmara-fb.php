@@ -35,32 +35,10 @@ register_deactivation_hook( __FILE__, 'cmarafb_deactivate' );
  * Options page for the plugin
  */
 
-function cmarafb_options_page_html() {
-  // check user capabilities
-  if ( ! current_user_can( 'manage_options' ) ) {
-    return;
-  }
-  ?>
-  <div class="wrap">
-    <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-    <form action="options.php" method="post">
-      <?php
-      // output security fields for the registered setting "wporg_options"
-      settings_fields( 'cmara_pageid' );
-      // output setting sections and their fields
-      // (sections are registered for "wporg", each field is registered to a specific section)
-      do_settings_sections( 'cmara_fb' );
-      // output save settings button
-      submit_button( __( 'Save Settings', 'textdomain' ) );
-      ?>
-    </form>
-  </div>
-  <?php
-}
 
 function cmarafb_settings_init() {
   register_setting(
-    'options',
+    'cmara_options',
     'cmara_pageid'
   );
 
@@ -109,6 +87,28 @@ function cmarafb_pageid_callback() {
 
 
 
+function cmarafb_options_page_html() {
+  // check user capabilities
+  if ( ! current_user_can( 'manage_options' ) ) {
+    return;
+  }
+  ?>
+  <div class="wrap">
+    <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+    <form action="options.php" method="post">
+      <?php
+      // output security fields for the registered setting "wporg_options"
+      settings_fields( 'cmara_options' );
+      // output setting sections and their fields
+      // (sections are registered for "wporg", each field is registered to a specific section)
+      // do_settings_sections( 'cmara_fb' );
+      // output save settings button
+      submit_button( __( 'Save Settings', 'textdomain' ) );
+      ?>
+    </form>
+  </div>
+  <?php
+}
 
 
 
