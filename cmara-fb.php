@@ -46,10 +46,10 @@ function cmarafb_options_page_html() {
     <form action="options.php" method="post">
       <?php
       // output security fields for the registered setting "wporg_options"
-      settings_fields( 'wporg_options' );
+      settings_fields( 'cmara_pageid' );
       // output setting sections and their fields
       // (sections are registered for "wporg", each field is registered to a specific section)
-      do_settings_sections( 'wporg' );
+      do_settings_sections( 'cmara_fb' );
       // output save settings button
       submit_button( __( 'Save Settings', 'textdomain' ) );
       ?>
