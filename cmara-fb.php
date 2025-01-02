@@ -68,14 +68,14 @@ function cmarafb_settings_init() {
 		'cmarafb_settings_section',
 		'CMARA Facebook Settings',
     'cmarafb_settings_callback',
-		'options'
+		'cmara_fb'
 	);
 
   add_settings_field(
 		'cmarafb_pageid_field',
 		'Facebook Page ID',
     'cmarafb_pageid_callback',
-		'options',
+		'cmara_fb',
 		'cmarafb_settings_section'
 	);
 }
@@ -113,18 +113,17 @@ function cmarafb_pageid_callback() {
 
 
 
-// function cmarafb_options_page() {
-//   add_submenu_page(
-//     'options-general.php',
-//     'CMARA Facebook Integration',
-//     'CMARA FB Options',
-//     'manage_options',
-//     'cmara_fb',
-//     'cmarafb_options_page_html',
-//     20
-//   );
-// }
-// add_action( 'admin_menu', 'cmarafb_options_page' );
+function cmarafb_options_page() {
+  add_options_page(
+    'CMARA Facebook Integration',
+    'CMARA FB Options',
+    'manage_options',
+    'cmara_fb',
+    'cmarafb_options_page_html',
+    20
+  );
+}
+add_action( 'admin_menu', 'cmarafb_options_page' );
 
 
 ?>
