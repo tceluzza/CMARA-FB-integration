@@ -18,23 +18,97 @@ if ( ! defined( 'ABSPATH' ) ) {
   die( 'Invalid request.' );
 }
 
+
+class Data_Encryption {
+
+	private $key;
+	private $salt;
+
+	public function __construct() {
+		$this->key  = $this->get_default_key();
+		$this->salt = $this->get_default_salt();
+	}
+
+	public function encrypt( $value ) {
+		if ( ! extension_loaded( 'openssl' ) ) {
+			return $value;
+		}
+
+		$method = 'aes-256-ctr';
+		$ivlen  = openssl_cipher_iv_length( $method );
+		$iv     = openssl_random_pseudo_bytes( $ivlen );
+
+		$raw_value = openssl_encrypt( $value . $this->salt, $method, $this->key, 0, $iv );
+		if ( ! $raw_value ) {
+			return false;
+		}
+
+		return base64_encode( $iv . $raw_value ); 
+	}
+
+	public function decrypt( $raw_value ) {
+		if ( ! extension_loaded( 'openssl' ) ) {
+			return $raw_value;
+		}
+
+		$raw_value = base64_decode( $raw_value, true ); 
+
+		$method = 'aes-256-ctr';
+		$ivlen  = openssl_cipher_iv_length( $method );
+		$iv     = substr( $raw_value, 0, $ivlen );
+
+		$raw_value = substr( $raw_value, $ivlen );
+
+		$value = openssl_decrypt( $raw_value, $method, $this->key, 0, $iv );
+		if ( ! $value || substr( $value, - strlen( $this->salt ) ) !== $this->salt ) {
+			return false;
+		}
+
+		return substr( $value, 0, - strlen( $this->salt ) );
+	}
+
+	private function get_default_key() {
+		if ( defined( 'FACEBOOKAPI_ENCRYPTION_KEY' ) && '' !== FACEBOOKAPI_ENCRYPTION_KEY ) {
+			return FACEBOOKAPI_ENCRYPTION_KEY;
+		}
+
+		if ( defined( 'LOGGED_IN_KEY' ) && '' !== LOGGED_IN_KEY ) {
+			return LOGGED_IN_KEY;
+		}
+
+		// If this is reached, you're either not on a live site or have a serious security issue.
+		return 'das-ist-kein-geheimer-schluessel';
+	}
+
+	private function get_default_salt() {
+		if ( defined( 'FACEBOOKAPI_ENCRYPTION_SALT' ) && '' !== FACEBOOKAPI_ENCRYPTION_SALT ) {
+			return FACEBOOKAPI_ENCRYPTION_SALT;
+		}
+
+		if ( defined( 'LOGGED_IN_SALT' ) && '' !== LOGGED_IN_SALT ) {
+			return LOGGED_IN_SALT;
+		}
+
+		// If this is reached, you're either not on a live site or have a serious security issue.
+		return 'das-ist-kein-geheimes-salz';
+	}
+}
+
+
 function cmarafb_activate() { 
+  // set up the DB entries
+  $data = array(
+    'fbpage_access_token' => '',
+    'fbpage_id' => ''
+  );
+  add_option('cmarafb_data', $data);
 
 }
 register_activation_hook( __FILE__, 'cmarafb_activate' );
 
 /**
- * Deactivation hook.
- */
-function cmarafb_deactivate() {
-
-}
-register_deactivation_hook( __FILE__, 'cmarafb_deactivate' );
-
-/**
  * Options page for the plugin
  */
-
 
 function cmarafb_settings_init() {
   register_setting(
@@ -56,7 +130,7 @@ function cmarafb_settings_init() {
 		'cmara',
 		'cmarafb_settings_section',
     array(
-			'label_for'         => 'cmarafb_pageid_field'
+			'label_for' => 'cmarafb_pageid_field'
 		)
 	);
 }
@@ -77,16 +151,15 @@ function cmarafb_section_callback() {
 
 // field content cb
 function cmarafb_pageid_callback() {
+  $encryption = new Data_Encryption;
+
 	// get the value of the setting we've registered with register_setting()
-	$setting = get_option('cmara_pageid');
+	$setting = $encryption->decrypt( get_option('cmara_pageid') );
 	// output the field
 	?>
 	<input type="text" name="cmara_pageid" value="<?php echo isset( $setting ) ? esc_attr( $setting ) : ''; ?>">
-    <?php
+  <?php
 }
-
-
-
 
 
 
@@ -96,10 +169,10 @@ function cmarafb_options_page_html() {
     return;
   }
 
-  if ( isset( $_GET['settings-updated'] ) ) {
-		// add settings saved message with the class of "updated"
-		add_settings_error( 'cmara_messages', 'cmara_message', __( 'Settings Saved', 'cmara' ), 'updated' );
-	}
+  // if ( isset( $_GET['settings-updated'] ) ) {
+	// 	// add settings saved message with the class of "updated"
+	// 	// add_settings_error( 'cmara_messages', 'cmara_message', __( 'Settings Saved', 'cmara' ), 'updated' );
+	// }
 
 	// show error/update messages
 	settings_errors( 'cmara_messages' );
@@ -136,6 +209,52 @@ function cmarafb_options_page() {
   );
 }
 add_action( 'admin_menu', 'cmarafb_options_page' );
+
+// hook to post to facebook any time there's a new post PUBLISHED
+function post_to_facebook( $new_status, $old_status, $post ) {
+  if ( !( 'publish' === $new_status && 'publish' !== $old_status ) ) {
+    return false;
+  }
+
+
+  // These should NOT be put here in plaintext, under ANY circumstances, and especially not
+  // committed to GH. I put them here ONLY during dev testing on a LOCAL environment.
+  // They should be stored (encrypted) in the database.
+  // TODO: encrypt these suckers
+  $page_access_token = 'facebook_page_access_token_here';
+  $page_id = 'facebook_page_id_here';
+
+  // what SHOULD be there, eventually
+  // $page_access_token = decrypt( get from database(fbaccesstoken) );
+  // $page_id = decrypt( get from database(fbpageid) );
+
+
+  // Normal things: where we want to post
+  $fb_api = 'https://graph.facebook.com/';
+  $fb_endpoint = '/feed';
+
+  // get perma-URL from the WP_Post object
+  $post_url = get_permalink( $post );
+
+  // what to send to the Meta API: the link plus our access token
+  $data['link'] = $post_url;
+  $data['access_token'] = $page_access_token;
+
+  // create the final URL to send our request to
+  $fb_url = $fb_api . $page_id . $fb_endpoint;
+
+  // curl it up (post it) 
+  $ch = curl_init();
+  curl_setopt($ch, CURLOPT_URL, $fb_url);       // our endpoint
+  curl_setopt($ch, CURLOPT_POST, 1);            // post request
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $data);  // payload
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+  $return = curl_exec($ch);
+  curl_close($ch);
+  // echo($return);
+}
+add_action( 'transition_post_status', 'post_to_facebook', 10, 3 );
+
 
 
 ?>
